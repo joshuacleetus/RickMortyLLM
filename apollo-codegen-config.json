@@ -1,0 +1,29 @@
+{
+  "schemaNamespace": "RickMortyAPI",
+  "input": {
+    "operationSearchPaths": ["GraphQL/Operations/**/*.graphql"],
+    "schemaSearchPaths": ["GraphQL/Schema/**/*.graphqls"]
+  },
+  "output": {
+    "schemaTypes": {
+      "path": "Generated/RickMortyAPI",
+      "moduleType": { "embeddedInTarget": { "name": "RickMortyLLM" } }
+    },
+    "operations": {
+      "relative": { "path": "Generated/Operations" }
+    },
+    "testMocks": { "none": {} }
+  },
+  "schemaDownload": {
+    "downloadMethod": {
+      "introspection": {
+        "endpointURL": "https://rickandmortyapi.com/graphql",
+        "httpMethod": { "POST": {} },
+        "includeDeprecatedInputValues": false,
+        "outputFormat": "SDL"
+      }
+    },
+    "outputPath": "GraphQL/Schema/RickMorty.graphqls"
+  }
+}
+

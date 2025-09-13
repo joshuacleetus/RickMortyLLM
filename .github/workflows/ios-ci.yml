@@ -18,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Your project was saved with Xcode 16 format (77), so use Xcode 16.x
+      # Your project uses Xcode 16 format (77)
       - name: Select Xcode 16.2
         uses: maxim-lobanov/setup-xcode@v1
         with:
@@ -36,23 +36,20 @@ jobs:
           set -e
           OUT=$(xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations || true)
 
-          # 1) Prefer an iPhone sim line with a UUID id
-          SIM_ID=$(printf "%s\n" "$OUT" \
-            | awk '/platform:iOS Simulator/ && /name:iPhone/ {
-                if (match($0, /id:[[:space:]]*([0-9A-Fa-f-]{8}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{12})/, m)) {
-                  print m[1]; exit
-                }
-              }')
+          # Prefer an iPhone simulator line with a true UUID id
+          SIM_ID=$(printf "%s\n" "$OUT" | perl -ne '
+            if (/platform:iOS Simulator/ && /name:iPhone/ && /id:\s*([0-9A-Fa-f-]{8}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{12})/) { print "$1\n"; exit }
+          ')
 
-          # 2) Fallback: any iOS Simulator line with a UUID id
+          # Fallback: any iOS Simulator line with a UUID id
           if [ -z "$SIM_ID" ]; then
-            SIM_ID=$(printf "%s\n" "$OUT" \
-              | sed -n 's/.*platform:iOS Simulator, id:[[:space:]]*\([0-9A-Fa-f-]\{36\}\).*/\1/p' \
-              | head -n1)
+            SIM_ID=$(printf "%s\n" "$OUT" | perl -ne '
+              if (/platform:iOS Simulator/ && /id:\s*([0-9A-Fa-f-]{8}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{12})/) { print "$1\n"; exit }
+            ')
           fi
 
           if [ -z "$SIM_ID" ]; then
-            echo "No real iOS Simulator UDID found in -showdestinations output:"
+            echo "No usable iOS Simulator UDID found in -showdestinations output:"
             echo "$OUT"
             exit 1
           fi

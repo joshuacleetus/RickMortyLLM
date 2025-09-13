@@ -63,16 +63,31 @@ jobs:
       - name: Build & Test (Simulator)
         run: |
           set -o pipefail
-          xcodebuild \
-            -project RickMortyLLM.xcodeproj \
-            -scheme RickMortyLLM \
-            -destination "platform=iOS Simulator,OS=${{ steps.pick.outputs.ios_version }},name=${{ steps.pick.outputs.device }}" \
-            -derivedDataPath DerivedData \
-            -skipPackagePluginValidation \
-            -parallel-testing-enabled YES \
-            -enableCodeCoverage YES \
-            -resultBundlePath TestResults.xcresult \
-            clean test
+          if [ "${{ steps.pick.outputs.device }}" = "generic" ]; then
+            echo "Using generic iOS Simulator platform"
+            xcodebuild \
+              -project RickMortyLLM.xcodeproj \
+              -scheme RickMortyLLM \
+              -destination 'generic/platform=iOS Simulator' \
+              -derivedDataPath DerivedData \
+              -skipPackagePluginValidation \
+              -parallel-testing-enabled YES \
+              -enableCodeCoverage YES \
+              -resultBundlePath TestResults.xcresult \
+              clean test
+          else
+            echo "Using device: ${{ steps.pick.outputs.device }} with iOS ${{ steps.pick.outputs.ios_version }}"
+            xcodebuild \
+              -project RickMortyLLM.xcodeproj \
+              -scheme RickMortyLLM \
+              -destination "platform=iOS Simulator,OS=${{ steps.pick.outputs.ios_version }},name=${{ steps.pick.outputs.device }}" \
+              -derivedDataPath DerivedData \
+              -skipPackagePluginValidation \
+              -parallel-testing-enabled YES \
+              -enableCodeCoverage YES \
+              -resultBundlePath TestResults.xcresult \
+              clean test
+          fi
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v4

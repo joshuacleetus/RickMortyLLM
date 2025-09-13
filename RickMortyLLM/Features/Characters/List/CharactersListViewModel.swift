@@ -16,38 +16,39 @@ final class CharactersListViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: String?
 
+    private let service: GraphQLService
+    init(service: GraphQLService = LiveGraphQLService()) { self.service = service }
+
     func loadNextPage() async {
         guard let page = nextPage, !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
 
         do {
-            // Cache-first: show cached page if present, otherwise fetch
-            let result = try await GraphQLClient.shared.fetchAsync(
-                CharactersQuery(page: .some(page)),
+            let (rows, next) = try await service.fetchCharacters(
+                page: page,
                 cachePolicy: .returnCacheDataElseFetch
             )
-            if let data = result.data, let characters = data.characters {
-                self.items += characters.results?.compactMap { $0 } ?? []
-                self.nextPage = characters.info?.next
-            }
+            self.items += rows
+            self.nextPage = next
         } catch {
             self.error = error.localizedDescription
         }
     }
 
-    // Optional pull-to-refresh that bypasses cache
+    // pull-to-refresh = bypass cache (network-only)
     func refresh() async {
-        items.removeAll(); nextPage = 1
+        items.removeAll()
+        nextPage = 1
         do {
-            let result = try await GraphQLClient.shared.fetchAsync(
-                CharactersQuery(page: .some(1)),
+            let (rows, next) = try await service.fetchCharacters(
+                page: 1,
                 cachePolicy: .fetchIgnoringCacheCompletely
             )
-            if let data = result.data, let characters = data.characters {
-                self.items = characters.results?.compactMap { $0 } ?? []
-                self.nextPage = characters.info?.next
-            }
-        } catch { self.error = error.localizedDescription }
+            self.items = rows
+            self.nextPage = next
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 }

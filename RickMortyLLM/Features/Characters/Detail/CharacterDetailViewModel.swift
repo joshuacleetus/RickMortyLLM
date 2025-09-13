@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import Apollo   // for CachePolicy
 
 @MainActor
 final class CharacterDetailViewModel: ObservableObject {
@@ -14,30 +15,48 @@ final class CharacterDetailViewModel: ObservableObject {
     @Published var isSummarizing = false
     @Published var error: String?
     
+    // Ask-a-question state (if you added it)
     @Published var question: String = ""
     @Published var answer: String?
     @Published var isAnswering = false
     
     private let llm: LLMClient
+    private let service: GraphQLService
     private var currentID: String?
     
-    init(llm: LLMClient) {
+    init(llm: LLMClient, service: GraphQLService = LiveGraphQLService()) {
         self.llm = llm
+        self.service = service
     }
     
+    /// Load using cache-first so previously viewed details appear instantly.
     func load(id: String) async {
-        self.currentID = id
+        currentID = id
         
-        if let cached = SummaryCache.read(for: id) {
-            self.summary = cached
-        }
+        // Optional: show any cached summary immediately
+        if let cached = SummaryCache.read(for: id) { self.summary = cached }
         
         do {
-            let result = try await GraphQLClient.shared.fetchAsync(
-                CharacterDetailsQuery(id: id)
+            self.character = try await service.fetchCharacter(
+                id: id,
+                cachePolicy: .returnCacheDataElseFetch
             )
-            self.character = result.data?.character
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            self.error = error.localizedDescription
+        }
+    }
+    
+    /// Force a network fetch (bypass cache). Useful for pull-to-refresh.
+    func refresh() async {
+        guard let id = currentID else { return }
+        do {
+            self.character = try await service.fetchCharacter(
+                id: id,
+                cachePolicy: .fetchIgnoringCacheCompletely
+            )
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
     
     func summarize(forceRefresh: Bool = false) async {

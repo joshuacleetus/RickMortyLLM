@@ -54,7 +54,7 @@ jobs:
             -enableCodeCoverage YES \
             -resultBundlePath TestResults.xcresult \
             test-without-building \
-            -only-testing:RickMortyLLMTests/FavoritesStoreTests \
+            -only-testing:RickMortyLLMTests/CharactersListViewModelTests/testLoad_usesCacheFirst_andSetsCharacter \
             -skip-testing:RickMortyLLMUITests \
             -skip-testing:DarkModeLaunchTests
       - name: Upload Test Results

@@ -18,34 +18,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Your project uses Xcode 16 format (77)
       - name: Select Xcode 16.2
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: '16.2'
 
       - name: Show available destinations (debug)
-        run: |
-          xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations || true
+        shell: bash
+        run: xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations || true
 
-      # Pick a REAL iOS Simulator UDID (skip placeholder ids)
+      # Pick a REAL iOS Simulator UDID (skip placeholders)
       - name: Pick an iOS Simulator by UDID
         id: pick
         shell: bash
         run: |
           set -e
-          OUT=$(xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations || true)
+          OUT="$(xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations || true)"
 
-          # Prefer an iPhone simulator line with a true UUID id
-          SIM_ID=$(printf "%s\n" "$OUT" | perl -ne '
-            if (/platform:iOS Simulator/ && /name:iPhone/ && /id:\s*([0-9A-Fa-f-]{8}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{12})/) { print "$1\n"; exit }
-          ')
+          # Prefer an iPhone simulator with a true UUID id
+          SIM_ID="$(printf "%s\n" "$OUT" | perl -ne 'if (/platform:iOS Simulator/ && /name:iPhone/ && /id:\s*([0-9A-Fa-f-]{8}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{12})/) { print "$1\n"; exit }')"
 
-          # Fallback: any iOS Simulator line with a UUID id
+          # Fallback: any iOS Simulator with a UUID id
           if [ -z "$SIM_ID" ]; then
-            SIM_ID=$(printf "%s\n" "$OUT" | perl -ne '
-              if (/platform:iOS Simulator/ && /id:\s*([0-9A-Fa-f-]{8}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{12})/) { print "$1\n"; exit }
-            ')
+            SIM_ID="$(printf "%s\n" "$OUT" | perl -ne 'if (/platform:iOS Simulator/ && /id:\s*([0-9A-Fa-f-]{8}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{4}-[0-9A-Fa-f-]{12})/) { print "$1\n"; exit }')"
           fi
 
           if [ -z "$SIM_ID" ]; then
@@ -76,18 +71,12 @@ jobs:
       #     ./apollo-ios-cli generate || true
 
       - name: Build & Test (using picked simulator)
+        shell: bash
         run: |
-          set -o pipefail
-          xcodebuild \
-            -project RickMortyLLM.xcodeproj \                    # change to -workspace if you use a .xcworkspace
-            -scheme RickMortyLLM \                               # ensure the scheme is Shared in Xcode
-            -destination "id=${{ steps.pick.outputs.sim_id }}" \
-            -derivedDataPath DerivedData \
-            -skipPackagePluginValidation \
-            -parallel-testing-enabled YES \
-            -enableCodeCoverage YES \
-            -resultBundlePath TestResults.xcresult \
-            clean test
+          set -eo pipefail
+          DEST="id=${{ steps.pick.outputs.sim_id }}"
+          echo "Using destination: $DEST"
+          xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -destination "$DEST" -derivedDataPath DerivedData -skipPackagePluginValidation -parallel-testing-enabled YES -enableCodeCoverage YES -resultBundlePath TestResults.xcresult clean test
 
       - name: Upload Test Results
         if: always()

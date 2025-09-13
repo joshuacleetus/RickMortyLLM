@@ -1,11 +1,11 @@
-RickMortyLLM
+# RickMortyLLM
 
 SwiftUI app that explores the Rick & Morty universe via GraphQL (Apollo iOS) and adds lightweight AI insights with an LLM (OpenAI gpt-3.5-turbo). Built with MVVM, async/await, Apollo normalized cache, and a tiny local summary cache. Includes Favorites, “Ask a question”, Accessibility, Dark Mode, unit tests, and GitHub Actions CI.
 
 Optional: add your CI badge once the workflow runs
 ![iOS CI](https://github.com/<your-username>/RickMortyLLM/actions/workflows/ios-ci.yml/badge.svg)
 
-Features
+# Features
 
 Browse characters (paginated list) and view rich details (episodes, locations).
 
@@ -136,7 +136,7 @@ Prompting kept short & deterministic-ish (temperature: 0.3)
 
 When no key is set, the app uses StubLLM with canned responses.
 
-Architecture
+# Architecture
 
 SwiftUI + MVVM
 
@@ -191,9 +191,9 @@ ApolloTestSupport.Mock<SchemaObject> → convert to SelectionSet with .from(...)
 Run:
 
 cmd + U     # in Xcode
-# or CI: see .github/workflows/ios-ci.yml
+or CI: see .github/workflows/ios-ci.yml
 
-Accessibility & Dark Mode
+# Accessibility & Dark Mode
 
 Uses Dynamic Type friendly text styles and minimumScaleFactor where needed.
 

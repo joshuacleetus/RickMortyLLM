@@ -49,27 +49,17 @@ jobs:
             ~/.swiftpm
           key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
           restore-keys: ${{ runner.os }}-spm-
-      # OPTIONAL: only if you don't commit generated Apollo code
-      # - name: Generate GraphQL
-      #   if: ${{ hashFiles('apollo-codegen-config.json') != '' }}
-      #   run: |
-      #     chmod +x ./apollo-ios-cli || true
-      #     ./apollo-ios-cli fetch-schema || true
-      #     ./apollo-ios-cli generate || true
-      - name: Build & Test (Unit Tests Only)
+      # Run ONLY unit tests (skip UI test bundles that are flaky on CI)
+      - name: Build & Test (unit tests only)
+        shell: bash
+        env:
+          CI: "1"
         run: |
-          set -o pipefail
-          xcodebuild \
-            -project RickMortyLLM.xcodeproj \
-            -scheme RickMortyLLM \
-            -destination "id=${{ steps.pick.outputs.sim_id }}" \
-            -only-testing RickMortyLLMTests \
-            -derivedDataPath DerivedData \
-            -skipPackagePluginValidation \
-            -parallel-testing-enabled YES \
-            -enableCodeCoverage YES \
-            -resultBundlePath TestResults.xcresult \
-            clean test
+          set -eo pipefail
+          DEST="id=${{ steps.pick.outputs.sim_id }}"
+          echo "Using destination: $DEST"
+          xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -destination "$DEST" -derivedDataPath DerivedData -skipPackagePluginValidation -parallel-testing-enabled YES -enableCodeCoverage YES -resultBundlePath TestResults.xcresult clean test -only-testing:RickMortyLLMTests
+
       - name: Upload Test Results
         if: always()
         uses: actions/upload-artifact@v4

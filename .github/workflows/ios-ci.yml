@@ -15,7 +15,7 @@ jobs:
       - name: Select Xcode 16
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.0'   # ensure this exists on the runner
+          xcode-version: '16.2'   # use latest available 16.x version
       - name: Install jq (for device picking)
         run: brew install jq
       - name: Show Xcode & Simulators
@@ -60,13 +60,6 @@ jobs:
             ~/.swiftpm
           key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
           restore-keys: ${{ runner.os }}-spm-
-      # OPTIONAL: only if you don't commit generated Apollo code
-      - name: Generate GraphQL
-        if: ${{ hashFiles('apollo-codegen-config.json') != '' }}
-        run: |
-          chmod +x ./apollo-ios-cli || true
-          ./apollo-ios-cli fetch-schema || true
-          ./apollo-ios-cli generate || true
       - name: Build & Test (Simulator)
         run: |
           set -o pipefail

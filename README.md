@@ -44,47 +44,6 @@ Drop images in Docs/ and link them here.
 Demo video (optional): upload to GitHub Releases, or a public link, then add:
 [Watch the demo](https://…)
 
-Project Structure
-RickMortyLLM/
-├─ GraphQL/
-│  ├─ Operations/           # .graphql operation files (Characters.graphql, CharacterDetails.graphql)
-│  └─ Schema/               # RickMorty.graphqls (downloaded)
-├─ Generated/
-│  ├─ RickMortyAPI/         # schema types
-│  └─ Operations/           # operation models (CharactersQuery, CharacterDetailsQuery)
-├─ Sources/
-│  ├─ App/
-│  │  ├─ AppConfig.swift
-│  │  └─ RickMortyLLMApp.swift
-│  ├─ GraphQL/
-│  │  ├─ GraphQLClient.swift       # Apollo client + cache
-│  │  └─ GraphQLService.swift      # LiveGraphQLService, GraphQLService protocol
-│  ├─ LLM/
-│  │  ├─ LLMClient.swift           # protocol
-│  │  ├─ OpenAIClient.swift        # production LLM
-│  │  └─ StubLLM.swift             # offline/dev fallback
-│  ├─ Features/
-│  │  ├─ CharactersList/
-│  │  │  ├─ CharactersListView.swift
-│  │  │  └─ CharactersListViewModel.swift
-│  │  └─ CharacterDetail/
-│  │     ├─ CharacterDetailView.swift
-│  │     └─ CharacterDetailViewModel.swift
-│  ├─ Shared/
-│  │  ├─ SummaryCache.swift
-│  │  ├─ FavoritesStore.swift
-│  │  └─ UI/
-│  │     └─ FavoriteButton.swift
-│  └─ Landing/
-│     └─ LandingView.swift
-├─ RickMortyLLMTests/
-│  ├─ Generated/
-│  │  └─ TestMocks/                # Apollo generated test mocks
-│  ├─ CharacterDetailViewModelTests.swift
-│  └─ CharactersListViewModelTests.swift
-├─ apollo-codegen-config.json
-└─ .github/workflows/ios-ci.yml
-
 Getting Started
 Requirements
 

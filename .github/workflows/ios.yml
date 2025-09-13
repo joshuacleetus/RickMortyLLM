@@ -7,14 +7,14 @@ on:
 
 jobs:
   build:
-    name: Build and Test default scheme using any available iPhone simulator
+    name: Build and Test default scheme on an iPhone simulator
     runs-on: macos-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
-      # Cache dependencies - this alone can save 5-10 minutes
+
+      # Caches (optional)
       - name: Cache derived data
         uses: actions/cache@v3
         with:
@@ -22,7 +22,7 @@ jobs:
           key: ${{ runner.os }}-derived-data-${{ hashFiles('**/*.pbxproj') }}
           restore-keys: |
             ${{ runner.os }}-derived-data-
-            
+
       - name: Cache CocoaPods
         uses: actions/cache@v3
         if: hashFiles('Podfile.lock') != ''
@@ -31,7 +31,7 @@ jobs:
           key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
           restore-keys: |
             ${{ runner.os }}-pods-
-            
+
       - name: Cache SPM
         uses: actions/cache@v3
         with:
@@ -40,48 +40,69 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-spm-
 
+      # Pick the first shared scheme (workspace > project)
       - name: Set Default Scheme
+        shell: bash
         run: |
-          scheme_list=$(xcodebuild -list -json | tr -d "\n")
-          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
-          echo $default | cat >default
-          echo Using default scheme: $default
+          json="$(xcodebuild -list -json | tr -d '\n')"
+          default="$(ruby -e "require 'json'; j=JSON.parse(STDIN.read); \
+            puts( (j['workspace'] && j['workspace']['schemes']&.first) || \
+                  (j['project']   && j['project']['schemes']&.first)    || '' )" <<< "$json")"
+          if [ -z "$default" ]; then
+            echo "No shared scheme found. In Xcode: Manage Schemes… → check 'Shared' for your app scheme, then commit."
+            exit 1
+          fi
+          echo "$default" > default
+          echo "Using scheme: $default"
 
-      - name: Build
+      - name: Build for Testing (named simulator)
+        shell: bash
         env:
-          scheme: ${{ 'default' }}
-          platform: ${{ 'iOS Simulator' }}
+          platform: iOS Simulator
+          device: iPhone SE (3rd generation)
         run: |
-          # Use a specific, fast simulator instead of auto-detection
-          device="iPhone SE (3rd generation)"
-          if [ $scheme = default ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          
-          # Add build optimizations
+          scheme="$(cat default)"
+          if ls -A | grep -qi '\.xcworkspace$'; then
+            filetype_parameter="workspace"; file_to_build="$(ls -A | grep -i '\.xcworkspace$' | head -n1)"
+          else
+            filetype_parameter="project";   file_to_build="$(ls -A | grep -i '\.xcodeproj$'   | head -n1)"
+          fi
+          file_to_build="$(echo "$file_to_build" | awk '{$1=$1;print}')"
+
           xcodebuild build-for-testing \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
             -destination "platform=$platform,name=$device" \
-            -quiet \
+            -derivedDataPath DerivedData \
             COMPILER_INDEX_STORE_ENABLE=NO \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO
 
-      - name: Test (Unit Tests Only - Skip Slow UI Tests)
+      - name: Test without building (unit tests only; skip UI tests)
+        shell: bash
         env:
-          scheme: ${{ 'default' }}
-          platform: ${{ 'iOS Simulator' }}
+          platform: iOS Simulator
+          device: iPhone SE (3rd generation)   # 👈 same device as build
         run: |
-          device="iPhone 15"
-          if [ $scheme = default ]; then scheme=$(cat default); fi
-          if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
-          file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          
+          scheme="$(cat default)"
+          if ls -A | grep -qi '\.xcworkspace$'; then
+            filetype_parameter="workspace"; file_to_build="$(ls -A | grep -i '\.xcworkspace$' | head -n1)"
+          else
+            filetype_parameter="project";   file_to_build="$(ls -A | grep -i '\.xcodeproj$'   | head -n1)"
+          fi
+          file_to_build="$(echo "$file_to_build" | awk '{$1=$1;print}')"
+
           xcodebuild test-without-building \
             -scheme "$scheme" \
             -"$filetype_parameter" "$file_to_build" \
             -destination "platform=$platform,name=$device" \
-            -quiet \
-            -skip-testing:DarkModeLaunchTests \
-            -skip-testing:RickMortyLLMUITestsLaunchTests
+            -enableCodeCoverage YES \
+            -resultBundlePath TestResults.xcresult \
+            -only-testing:RickMortyLLMTests
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TestResults.xcresult
+          path: TestResults.xcresult

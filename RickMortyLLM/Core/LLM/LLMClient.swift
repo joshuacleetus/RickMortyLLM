@@ -15,4 +15,15 @@ protocol LLMClient {
         gender: String,
         episodes: String
     ) async throws -> String
+    
+    func answerAboutCharacter(
+        name: String,
+        status: String,
+        species: String,
+        gender: String,
+        origin: String?,
+        location: String?,
+        episodes: [String],
+        question: String
+    ) async throws -> String
 }

@@ -22,8 +22,10 @@ final class CharactersListViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
+            // Cache-first: show cached page if present, otherwise fetch
             let result = try await GraphQLClient.shared.fetchAsync(
-                CharactersQuery(page: .some(page))
+                CharactersQuery(page: .some(page)),
+                cachePolicy: .returnCacheDataElseFetch
             )
             if let data = result.data, let characters = data.characters {
                 self.items += characters.results?.compactMap { $0 } ?? []
@@ -33,5 +35,19 @@ final class CharactersListViewModel: ObservableObject {
             self.error = error.localizedDescription
         }
     }
-}
 
+    // Optional pull-to-refresh that bypasses cache
+    func refresh() async {
+        items.removeAll(); nextPage = 1
+        do {
+            let result = try await GraphQLClient.shared.fetchAsync(
+                CharactersQuery(page: .some(1)),
+                cachePolicy: .fetchIgnoringCacheCompletely
+            )
+            if let data = result.data, let characters = data.characters {
+                self.items = characters.results?.compactMap { $0 } ?? []
+                self.nextPage = characters.info?.next
+            }
+        } catch { self.error = error.localizedDescription }
+    }
+}

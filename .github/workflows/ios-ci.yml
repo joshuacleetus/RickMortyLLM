@@ -1,11 +1,10 @@
 name: iOS CI
 
-"on":
+on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
-  workflow_dispatch:
+    branches: [ main ]
 
 concurrency:
   group: ios-${{ github.ref }}
@@ -13,22 +12,35 @@ concurrency:
 
 jobs:
   build-and-test:
-    runs-on: macos-15
+    runs-on: macos-14
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Select Xcode
+      - name: Select Xcode 15.4
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '16.0'
+          xcode-version: '15.4'
 
-      - name: Show Xcode & Simulators
+      - name: Show available destinations (debug)
         run: |
-          xcodebuild -version
-          xcodebuild -showsdks
-          xcrun simctl list devices
           xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations || true
+
+      - name: Pick an iOS Simulator by UDID (from -showdestinations)
+        id: pick
+        shell: bash
+        run: |
+          SIM_ID=$(xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations \
+            | sed -n 's/.*platform:iOS Simulator, id:[[:space:]]*\([^,}]*\).*/\1/p' \
+            | head -n1)
+
+          if [ -z "$SIM_ID" ]; then
+            echo "No iOS Simulator destination found for this scheme"; exit 1
+          fi
+
+          echo "Picked simulator id: $SIM_ID"
+          echo "sim_id=$SIM_ID" >> "$GITHUB_OUTPUT"
 
       - name: Cache SPM
         uses: actions/cache@v4
@@ -38,17 +50,16 @@ jobs:
             ~/Library/Caches/org.swift.swiftpm
             ~/.swiftpm
           key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
-          restore-keys: |
-            ${{ runner.os }}-spm-
+          restore-keys: ${{ runner.os }}-spm-
 
 
-      - name: Build & Test (Simulator)
+      - name: Build & Test (using picked simulator)
         run: |
           set -o pipefail
           xcodebuild \
             -project RickMortyLLM.xcodeproj \
             -scheme RickMortyLLM \
-            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 16' \
+            -destination "id=${{ steps.pick.outputs.sim_id }}" \
             -derivedDataPath DerivedData \
             -skipPackagePluginValidation \
             -parallel-testing-enabled YES \

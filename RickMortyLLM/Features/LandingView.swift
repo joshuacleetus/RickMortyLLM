@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct LandingView: View {
-    private var hasOpenAIKey: Bool { !AppConfig.openAIKey.isEmpty }
+    private var hasOpenAIKey: Bool { !AppConfig.shared.openAIKey.isEmpty }
 
     var body: some View {
         VStack(spacing: 24) {

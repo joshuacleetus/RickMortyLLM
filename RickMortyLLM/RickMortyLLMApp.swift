@@ -11,7 +11,9 @@ import SwiftUI
 struct RickMortyLLMApp: App {
     var body: some Scene {
         WindowGroup {
-            LandingView()
+            NavigationStack {
+                LandingView()
+            }
         }
     }
 }

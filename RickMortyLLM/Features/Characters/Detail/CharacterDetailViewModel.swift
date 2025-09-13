@@ -42,6 +42,10 @@ final class CharacterDetailViewModel: ObservableObject {
                 gender: c.gender ?? "",
                 episodes: episodes
             )
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            // Prefer our LocalizedError text if available
+            self.error = (error as? LocalizedError)?.errorDescription ?? String(describing: error)
+            print(error as Any)
+        }
     }
 }

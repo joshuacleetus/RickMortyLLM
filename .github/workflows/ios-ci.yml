@@ -1,13 +1,3 @@
-name: iOS CI
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-concurrency:
-  group: ios-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build-and-test:
     runs-on: macos-14
@@ -19,37 +9,25 @@ jobs:
         with:
           xcode-version: '16.2'
 
-      - name: Install jq
-        run: brew install jq
-
-      - name: Show Xcode & Simulators
+      - name: Show destinations (debug)
         run: |
-          xcodebuild -version
-          xcrun simctl list devices --json | jq '.devices | with_entries(.value |= map(select(.isAvailable == true)))' | jq -r '.devices | to_entries[] | "\(.key): \(.value | length) available"'
           xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations || true
 
-      - name: Pick an available iPhone simulator (by UDID)
+      - name: Pick an iOS Simulator by UDID (from -showdestinations)
         id: pick
         shell: bash
         run: |
-          json=$(xcrun simctl list devices --json)
-          # Prefer newest iPhone family; fall back to any available iPhone
-          udid=$(echo "$json" | jq -r '
-            .devices | to_entries[].value[]
-            | select(.isAvailable == true)
-            | select(.name | startswith("iPhone"))
-            | .udid
-          ' | head -n1)
+          # Get the first iOS Simulator id from -showdestinations output
+          SIM_ID=$(xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations \
+            | sed -n 's/.*platform:iOS Simulator, id:[[:space:]]*\([^,}]*\).*/\1/p' \
+            | head -n1)
 
-          if [ -z "$udid" ]; then
-            echo "No available iPhone simulator found"; exit 1
+          if [ -z "$SIM_ID" ]; then
+            echo "No iOS Simulator destination found for this scheme"; exit 1
           fi
 
-          name=$(echo "$json" | jq -r ".devices | to_entries[].value[] | select(.udid==\"$udid\") | .name")
-          runtime=$(echo "$json" | jq -r ".devices | to_entries[].value[] | select(.udid==\"$udid\") | .runtime")
-
-          echo "Picked device: $name ($runtime) — $udid"
-          echo "sim_id=$udid" >> "$GITHUB_OUTPUT"
+          echo "Picked simulator id: $SIM_ID"
+          echo "sim_id=$SIM_ID" >> "$GITHUB_OUTPUT"
 
       - name: Cache SPM
         uses: actions/cache@v4
@@ -62,7 +40,7 @@ jobs:
           restore-keys: ${{ runner.os }}-spm-
 
 
-      - name: Build & Test (Simulator)
+      - name: Build & Test (using picked simulator)
         run: |
           set -o pipefail
           xcodebuild \

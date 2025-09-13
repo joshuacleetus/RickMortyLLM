@@ -18,29 +18,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode 15.4
+      # Use Xcode 16.x to match your project format (77)
+      - name: Select Xcode 16.2
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '15.4'
+          xcode-version: '16.2'
 
       - name: Show available destinations (debug)
         run: |
           xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations || true
 
-      - name: Pick an iOS Simulator by UDID (from -showdestinations)
+      # Parse the first iOS Simulator UDID from -showdestinations
+      - name: Pick an iOS Simulator by UDID
         id: pick
         shell: bash
         run: |
-          SIM_ID=$(xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations \
-            | sed -n 's/.*platform:iOS Simulator, id:[[:space:]]*\([^,}]*\).*/\1/p' \
-            | head -n1)
-
-          if [ -z "$SIM_ID" ]; then
-            echo "No iOS Simulator destination found for this scheme"; exit 1
+          set -e
+          OUT=$(xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations || true)
+          SIM_ID=$(printf "%s" "$OUT" | sed -n 's/.*platform:iOS Simulator, id:[[:space:]]*\([^,}]*\).*/\1/p' | head -n1)
+          if [ -n "$SIM_ID" ]; then
+            echo "Picked simulator id: $SIM_ID"
+            echo "sim_id=$SIM_ID" >> "$GITHUB_OUTPUT"
+          else
+            echo "No specific simulator id found; will use generic iOS Simulator destination"
+            echo "sim_id=" >> "$GITHUB_OUTPUT"
           fi
-
-          echo "Picked simulator id: $SIM_ID"
-          echo "sim_id=$SIM_ID" >> "$GITHUB_OUTPUT"
 
       - name: Cache SPM
         uses: actions/cache@v4
@@ -52,14 +54,29 @@ jobs:
           key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
           restore-keys: ${{ runner.os }}-spm-
 
+      # OPTIONAL: only if you don't commit generated Apollo code
+      # - name: Generate GraphQL
+      #   if: ${{ hashFiles('apollo-codegen-config.json') != '' }}
+      #   run: |
+      #     chmod +x ./apollo-ios-cli || true
+      #     ./apollo-ios-cli fetch-schema || true
+      #     ./apollo-ios-cli generate || true
 
-      - name: Build & Test (using picked simulator)
+      - name: Build & Test
+        shell: bash
         run: |
           set -o pipefail
+          if [ -n "${{ steps.pick.outputs.sim_id }}" ]; then
+            DEST="id=${{ steps.pick.outputs.sim_id }}"
+          else
+            # Fallback if -showdestinations didn't enumerate specific sims
+            DEST="generic/platform=iOS Simulator"
+          fi
+          echo "Using destination: $DEST"
           xcodebuild \
             -project RickMortyLLM.xcodeproj \
             -scheme RickMortyLLM \
-            -destination "id=${{ steps.pick.outputs.sim_id }}" \
+            -destination "$DEST" \
             -derivedDataPath DerivedData \
             -skipPackagePluginValidation \
             -parallel-testing-enabled YES \

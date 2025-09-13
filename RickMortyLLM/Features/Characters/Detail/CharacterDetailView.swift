@@ -86,6 +86,13 @@ struct CharacterDetailView: View {
             }
         }
         .navigationTitle("Details")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if let id = vm.character?.id {
+                    FavoriteButton(id: id)   // ⭐️
+                }
+            }
+        }
         .alert("Error", isPresented: .constant(vm.error != nil)) {
             Button("OK") { vm.error = nil }
         } message: { Text(vm.error ?? "") }

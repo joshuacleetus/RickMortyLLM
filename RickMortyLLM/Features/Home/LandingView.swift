@@ -27,8 +27,10 @@ struct LandingView: View {
             HStack(spacing: 8) {
                 Circle().frame(width: 8, height: 8)
                     .foregroundStyle(hasOpenAIKey ? .green : .orange)
+                    .accessibilityHidden(true)
                 Text(hasOpenAIKey ? "AI: OpenAI (key detected)" : "AI: Stub (no key)")
                     .font(.subheadline).foregroundStyle(.secondary)
+                    .accessibilityLabel(hasOpenAIKey ? "AI ready" : "AI in stub mode")
             }
 
             NavigationLink {
@@ -43,6 +45,7 @@ struct LandingView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
                     .padding(.horizontal)
             }
+            .accessibilityHint("Opens the characters list")
 
             Spacer()
         }

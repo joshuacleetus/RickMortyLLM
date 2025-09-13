@@ -1,5 +1,4 @@
 name: iOS starter workflow
-
 on:
   push:
     branches: [ "main" ]
@@ -10,27 +9,65 @@ jobs:
   build:
     name: Build and Test default scheme using any available iPhone simulator
     runs-on: macos-latest
-
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        
+      # Cache dependencies - this alone can save 5-10 minutes
+      - name: Cache derived data
+        uses: actions/cache@v3
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-derived-data-${{ hashFiles('**/*.pbxproj') }}
+          restore-keys: |
+            ${{ runner.os }}-derived-data-
+            
+      - name: Cache CocoaPods
+        uses: actions/cache@v3
+        if: hashFiles('Podfile.lock') != ''
+        with:
+          path: Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+            
+      - name: Cache SPM
+        uses: actions/cache@v3
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
       - name: Set Default Scheme
         run: |
           scheme_list=$(xcodebuild -list -json | tr -d "\n")
           default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
           echo $default | cat >default
           echo Using default scheme: $default
+
       - name: Build
         env:
           scheme: ${{ 'default' }}
           platform: ${{ 'iOS Simulator' }}
         run: |
-          # xcrun xctrace returns via stderr, not the expected stdout (see https://developer.apple.com/forums/thread/663959)
-          device=`xcrun xctrace list devices 2>&1 | grep -oE 'iPhone.*?[^\(]+' | head -1 | awk '{$1=$1;print}' | sed -e "s/ Simulator$//"`
+          # Use a specific, fast simulator instead of auto-detection
+          device="iPhone SE (3rd generation)"
           if [ $scheme = default ]; then scheme=$(cat default); fi
           if [ "`ls -A | grep -i \\.xcworkspace\$`" ]; then filetype_parameter="workspace" && file_to_build="`ls -A | grep -i \\.xcworkspace\$`"; else filetype_parameter="project" && file_to_build="`ls -A | grep -i \\.xcodeproj\$`"; fi
           file_to_build=`echo $file_to_build | awk '{$1=$1;print}'`
-          xcodebuild build-for-testing -scheme "$scheme" -"$filetype_parameter" "$file_to_build" -destination "platform=$platform,name=$device"
+          
+          # Add build optimizations
+          xcodebuild build-for-testing \
+            -scheme "$scheme" \
+            -"$filetype_parameter" "$file_to_build" \
+            -destination "platform=$platform,name=$device" \
+            -quiet \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO
+
       - name: Test (Unit Tests Only - Skip Slow UI Tests)
         env:
           scheme: ${{ 'default' }}

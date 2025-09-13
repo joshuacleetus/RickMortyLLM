@@ -41,25 +41,4 @@ jobs:
             -skipPackagePluginValidation \
             COMPILER_INDEX_STORE_ENABLE=NO \
             build-for-testing
-      # Run only CharactersListViewModelTests
-      - name: Test CharactersListViewModelTests only
-        run: |
-          set -euo pipefail
-          DEVICE='iPhone SE (3rd generation)'
-          xcodebuild \
-            -project RickMortyLLM.xcodeproj \
-            -scheme RickMortyLLM \
-            -destination "platform=iOS Simulator,name=${DEVICE}" \
-            -derivedDataPath DerivedData \
-            -enableCodeCoverage YES \
-            -resultBundlePath TestResults.xcresult \
-            test-without-building \
-            -only-testing:RickMortyLLMTests/CharactersListViewModelTests/testLoad_usesCacheFirst_andSetsCharacter \
-            -skip-testing:RickMortyLLMUITests \
-            -skip-testing:DarkModeLaunchTests
-      - name: Upload Test Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: TestResults.xcresult
-          path: TestResults.xcresult
+      

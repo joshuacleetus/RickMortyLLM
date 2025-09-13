@@ -22,6 +22,13 @@ jobs:
         with:
           xcode-version: '16.0'
 
+      - name: Show Xcode & Simulators
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
+          xcrun simctl list devices
+          xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations || true
+
       - name: Cache SPM
         uses: actions/cache@v4
         with:
@@ -33,7 +40,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-spm-
 
-      # OPTIONAL: Only if you don't commit generated code.
+      # OPTIONAL: only if you don't commit generated Apollo code
       - name: Generate GraphQL
         if: ${{ hashFiles('apollo-codegen-config.json') != '' }}
         run: |
@@ -47,7 +54,7 @@ jobs:
           xcodebuild \
             -project RickMortyLLM.xcodeproj \
             -scheme RickMortyLLM \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 16' \
             -derivedDataPath DerivedData \
             -skipPackagePluginValidation \
             -parallel-testing-enabled YES \

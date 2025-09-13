@@ -41,13 +41,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-spm-
 
-      # OPTIONAL: only if you don't commit generated Apollo code
-      - name: Generate GraphQL
-        if: ${{ hashFiles('apollo-codegen-config.json') != '' }}
-        run: |
-          chmod +x ./apollo-ios-cli || true
-          ./apollo-ios-cli fetch-schema || true
-          ./apollo-ios-cli generate || true
 
       - name: Build & Test (Simulator)
         run: |

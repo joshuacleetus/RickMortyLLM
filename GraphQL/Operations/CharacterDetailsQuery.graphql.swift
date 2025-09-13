@@ -2,7 +2,6 @@
 // This file was automatically generated and should not be edited.
 
 @_exported import ApolloAPI
-import RickMortyLLM
 
 public class CharacterDetailsQuery: GraphQLQuery {
   public static let operationName: String = "CharacterDetails"

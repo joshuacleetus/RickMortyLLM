@@ -40,7 +40,7 @@ extension RickMortyAPI {
     }
   }
 
-  enum Objects {}
+  public enum Objects {}
   enum Interfaces {}
   enum Unions {}
 

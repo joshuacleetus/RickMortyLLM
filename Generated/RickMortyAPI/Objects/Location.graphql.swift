@@ -4,7 +4,7 @@
 import ApolloAPI
 
 extension RickMortyAPI.Objects {
-  static let Location = ApolloAPI.Object(
+  public static let Location = ApolloAPI.Object(
     typename: "Location",
     implementedInterfaces: [],
     keyFields: nil

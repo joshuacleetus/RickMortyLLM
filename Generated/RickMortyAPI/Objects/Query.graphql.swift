@@ -4,7 +4,7 @@
 import ApolloAPI
 
 extension RickMortyAPI.Objects {
-  static let Query = ApolloAPI.Object(
+  public static let Query = ApolloAPI.Object(
     typename: "Query",
     implementedInterfaces: [],
     keyFields: nil

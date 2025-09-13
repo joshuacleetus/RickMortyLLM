@@ -9,10 +9,13 @@
       "path": "Generated/RickMortyAPI",
       "moduleType": { "embeddedInTarget": { "name": "RickMortyLLM" } }
     },
-    "operations": {
-      "relative": { "path": "Generated/Operations" }
-    },
-    "testMocks": { "none": {} }
+    "operations": { "relative": { "path": "Generated/Operations" } },
+    "testMocks": {
+      "absolute": {
+        "path": "RickMortyLLMTests/Generated/TestMocks",
+        "accessModifier": "internal"
+      }
+    }
   },
   "schemaDownload": {
     "downloadMethod": {
@@ -26,4 +29,3 @@
     "outputPath": "GraphQL/Schema/RickMorty.graphqls"
   }
 }
-

@@ -1,22 +1,39 @@
-name: iOS CI
-on:
-  push: { branches: [ main ] }
-  pull_request: { branches: [ main ] }
-concurrency:
-  group: ios-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build-and-test:
-    runs-on: macos-14
-
+    runs-on: macos-14     # or macos-15 if your org has it
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode
+      - name: Select Xcode 16
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '15.4'
+          xcode-version: '16.0'   # ensure this exists on the runner
+
+      - name: Install jq (for device picking)
+        run: brew install jq
+
+      - name: Show Xcode & Simulators
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
+          xcrun simctl list devices
+
+      - name: Pick an available iPhone simulator
+        id: pick
+        shell: bash
+        run: |
+          json=$(xcrun simctl list devices --json)
+          # Prefer newest iPhone names; fall back to any available iPhone
+          name=$(echo "$json" | jq -r '
+            .devices | to_entries[].value[]
+            | select(.isAvailable == true)
+            | .name
+          ' | grep -E "iPhone 1(6|5)|iPhone SE|iPhone" | head -n1)
+          if [ -z "$name" ]; then
+            echo "No iPhone simulator found"; exit 1
+          fi
+          echo "device=$name" >> "$GITHUB_OUTPUT"
+          echo "Picked: $name"
 
       - name: Cache SPM
         uses: actions/cache@v4
@@ -34,7 +51,7 @@ jobs:
           xcodebuild \
             -project RickMortyLLM.xcodeproj \
             -scheme RickMortyLLM \
-            -destination 'platform=iOS Simulator,OS=latest,name=iPhone 15' \
+            -destination "platform=iOS Simulator,OS=latest,name=${{ steps.pick.outputs.device }}" \
             -derivedDataPath DerivedData \
             -skipPackagePluginValidation \
             -parallel-testing-enabled YES \

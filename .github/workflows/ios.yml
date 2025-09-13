@@ -1,104 +1,58 @@
-name: iOS starter workflow
+name: iOS CI
+
 on:
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build and Test default scheme on an iPhone simulator
+  build-and-test:
     runs-on: macos-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Caches (optional)
-      - name: Cache derived data
-        uses: actions/cache@v3
+      - name: Select Xcode 16.4
+        uses: maxim-lobanov/setup-xcode@v1
         with:
-          path: ~/Library/Developer/Xcode/DerivedData
-          key: ${{ runner.os }}-derived-data-${{ hashFiles('**/*.pbxproj') }}
-          restore-keys: |
-            ${{ runner.os }}-derived-data-
+          xcode-version: '16.4'
 
-      - name: Cache CocoaPods
-        uses: actions/cache@v3
-        if: hashFiles('Podfile.lock') != ''
-        with:
-          path: Pods
-          key: ${{ runner.os }}-pods-${{ hashFiles('**/Podfile.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pods-
+      - name: Show destinations (debug)
+        run: xcodebuild -project RickMortyLLM.xcodeproj -scheme RickMortyLLM -showdestinations || true
 
+      # (Optional) Cache SPM to speed up builds
       - name: Cache SPM
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
-          path: ~/Library/Developer/Xcode/DerivedData/**/SourcePackages
-          key: ${{ runner.os }}-spm-${{ hashFiles('**/*.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+          path: |
+            ~/Library/Developer/Xcode/DerivedData
+            ~/Library/Caches/org.swift.swiftpm
+            ~/.swiftpm
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
           restore-keys: |
             ${{ runner.os }}-spm-
 
-      # Pick the first shared scheme (workspace > project)
-      - name: Set Default Scheme
-        shell: bash
+      # Single step: build + run only unit tests (no UI tests)
+      - name: Build & Test (unit tests only)
         run: |
-          json="$(xcodebuild -list -json | tr -d '\n')"
-          default="$(ruby -e "require 'json'; j=JSON.parse(STDIN.read); \
-            puts( (j['workspace'] && j['workspace']['schemes']&.first) || \
-                  (j['project']   && j['project']['schemes']&.first)    || '' )" <<< "$json")"
-          if [ -z "$default" ]; then
-            echo "No shared scheme found. In Xcode: Manage Schemes… → check 'Shared' for your app scheme, then commit."
-            exit 1
-          fi
-          echo "$default" > default
-          echo "Using scheme: $default"
-
-      - name: Build for Testing (named simulator)
-        shell: bash
-        env:
-          platform: iOS Simulator
-          device: iPhone SE (3rd generation)
-        run: |
-          scheme="$(cat default)"
-          if ls -A | grep -qi '\.xcworkspace$'; then
-            filetype_parameter="workspace"; file_to_build="$(ls -A | grep -i '\.xcworkspace$' | head -n1)"
-          else
-            filetype_parameter="project";   file_to_build="$(ls -A | grep -i '\.xcodeproj$'   | head -n1)"
-          fi
-          file_to_build="$(echo "$file_to_build" | awk '{$1=$1;print}')"
-
-          xcodebuild build-for-testing \
-            -scheme "$scheme" \
-            -"$filetype_parameter" "$file_to_build" \
-            -destination "platform=$platform,name=$device" \
+          set -eo pipefail
+          xcodebuild \
+            -project RickMortyLLM.xcodeproj \
+            -scheme RickMortyLLM \
+            -destination "platform=iOS Simulator,name=iPhone SE (3rd generation),OS=latest" \
             -derivedDataPath DerivedData \
-            COMPILER_INDEX_STORE_ENABLE=NO \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO
-
-      - name: Test without building (unit tests only; skip UI tests)
-        shell: bash
-        env:
-          platform: iOS Simulator
-          device: iPhone SE (3rd generation)   # 👈 same device as build
-        run: |
-          scheme="$(cat default)"
-          if ls -A | grep -qi '\.xcworkspace$'; then
-            filetype_parameter="workspace"; file_to_build="$(ls -A | grep -i '\.xcworkspace$' | head -n1)"
-          else
-            filetype_parameter="project";   file_to_build="$(ls -A | grep -i '\.xcodeproj$'   | head -n1)"
-          fi
-          file_to_build="$(echo "$file_to_build" | awk '{$1=$1;print}')"
-
-          xcodebuild test-without-building \
-            -scheme "$scheme" \
-            -"$filetype_parameter" "$file_to_build" \
-            -destination "platform=$platform,name=$device" \
+            -skipPackagePluginValidation \
             -enableCodeCoverage YES \
             -resultBundlePath TestResults.xcresult \
-            -only-testing:RickMortyLLMTests
+            clean test \
+            -only-testing:RickMortyLLMTests \
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Upload Test Results
         if: always()

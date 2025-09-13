@@ -39,7 +39,6 @@ jobs:
           key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved') }}
           restore-keys: ${{ runner.os }}-spm-
 
-
       - name: Build & Test (using picked simulator)
         run: |
           set -o pipefail

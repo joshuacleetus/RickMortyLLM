@@ -4,7 +4,7 @@ A small SwiftUI app that fetches data from the **Rick & Morty GraphQL API** and 
 
 > Target: iOS 17+
 >
-> Stack: SwiftUI · Apollo iOS · Combine/Swift Concurrency · URLSession · (Optional) Node/Express proxy for LLM
+> Stack: SwiftUI · Apollo iOS · Combine/Swift Concurrency · URLSession . Open AI
 
 ---
 
@@ -47,7 +47,7 @@ A small SwiftUI app that fetches data from the **Rick & Morty GraphQL API** and 
 
 * **MVVM** with a thin UseCase layer (protocol-oriented, easy to unit test).
 * **Apollo iOS** for GraphQL transport & strongly-typed models.
-* **LLMProvider** protocol with concrete implementations for OpenAI or Gemini.
+* **LLMProvider** protocol with concrete implementations for OpenAI.
 * **EnvironmentConfig** for API keys and base URLs.
 * **Cache**: lightweight JSON file cache (can be swapped for SQLite/CoreData later).
 

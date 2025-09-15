@@ -77,17 +77,6 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
-/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		7970FC0C2E74CFEA00206BBF /* Exceptions for "GraphQL" folder in "Compile Sources" phase from "RickMortyLLM" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			buildPhase = 7970FBC82E74CAA600206BBF /* Sources */;
-			membershipExceptions = (
-				Operations/CharacterDetails.graphql,
-				Operations/Characters.graphql,
-			);
-		};
-/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		7970FBCE2E74CAA600206BBF /* RickMortyLLM */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -111,7 +100,6 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				7970FC0B2E74CFEA00206BBF /* Exceptions for "GraphQL" folder in "RickMortyLLM" target */,
-				7970FC0C2E74CFEA00206BBF /* Exceptions for "GraphQL" folder in "Compile Sources" phase from "RickMortyLLM" target */,
 			);
 			path = GraphQL;
 			sourceTree = "<group>";

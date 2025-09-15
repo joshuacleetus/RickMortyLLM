@@ -53,7 +53,7 @@ struct CharactersListView: View {
         )) {
             Button("OK") { vm.error = nil }
         } message: {
-            Text(vm.error ?? "")
+            Text(vm.errorMessage ?? "Unknown error")
         }
     }
 }

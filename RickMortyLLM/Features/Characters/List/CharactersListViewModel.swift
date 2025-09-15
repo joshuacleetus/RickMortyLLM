@@ -19,6 +19,16 @@ final class CharactersListViewModel: ObservableObject {
     private let service: GraphQLService
     init(service: GraphQLService = LiveGraphQLService()) { self.service = service }
 
+    func filteredItems(
+        showFavoritesOnly: Bool,
+        isFavorite: (String) -> Bool
+    ) -> [CharactersQuery.Data.Characters.Result] {
+        items.filter { c in
+            guard let id = c.id else { return !showFavoritesOnly }
+            return !showFavoritesOnly || isFavorite(id)
+        }
+    }
+
     func loadNextPage() async {
         guard let page = nextPage, !isLoading else { return }
         isLoading = true

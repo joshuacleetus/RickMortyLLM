@@ -20,42 +20,19 @@ struct CharactersListView: View {
                 .padding(.horizontal)
 
             List {
-                // Filter the items up front to avoid empty rows
-                let filtered = vm.items.filter { c in
-                    guard let id = c.id else { return !showFavoritesOnly }
-                    return !showFavoritesOnly || favorites.contains(id)
-                }
+                let filtered = vm.filteredItems(
+                    showFavoritesOnly: showFavoritesOnly,
+                    isFavorite: { favorites.contains($0) }
+                )
 
-                ForEach(filtered.indices, id: \.self) { index in
-                    let c = filtered[index]
+                ForEach(filtered, id: \.id) { character in
                     NavigationLink {
-                        CharacterDetailView(id: c.id ?? "")
+                        CharacterDetailView(id: character.id ?? "")
                     } label: {
-                        HStack(spacing: 12) {
-                            AsyncImage(url: URL(string: c.image ?? "")) { image in
-                                image.resizable().scaledToFill()
-                            } placeholder: { ProgressView() }
-                            .frame(width: 56, height: 56)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(c.name ?? "Unknown").font(.headline)
-                                Text("\(c.species ?? "—") • \(c.status ?? "—")")
-                                    .foregroundStyle(.secondary)
-                                    .font(.subheadline)
-                            }
-
-                            Spacer()
-
-                            if let id = c.id {
-                                FavoriteButton(id: id)  // ⭐️
-                            }
-                        }
-                        .contentShape(Rectangle())
+                        CharacterRowView(character: character)
                     }
-                    // infinite scroll: when last filtered row appears, load next page
                     .onAppear {
-                        if index == filtered.count - 1 {
+                        if character.id == filtered.last?.id {
                             Task { await vm.loadNextPage() }
                         }
                     }
@@ -66,11 +43,17 @@ struct CharactersListView: View {
                 }
             }
             .listStyle(.plain)
+            .refreshable { await vm.refresh() }
         }
         .navigationTitle("Characters")
-        .task { await vm.loadNextPage() } // initial load
-        .alert("Error", isPresented: .constant(vm.error != nil)) {
+        .task { await vm.loadNextPage() }
+        .alert("Error", isPresented: Binding(
+            get: { vm.error != nil },
+            set: { _ in vm.error = nil }
+        )) {
             Button("OK") { vm.error = nil }
-        } message: { Text(vm.error ?? "") }
+        } message: {
+            Text(vm.error ?? "")
+        }
     }
 }

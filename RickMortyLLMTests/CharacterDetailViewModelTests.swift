@@ -9,6 +9,14 @@ import ApolloTestSupport
 
 @MainActor
 final class CharacterDetailViewModelTests: XCTestCase {
+    
+    override func tearDown() async throws {
+        // Clear all cache entries used in tests
+        for id in ["1", "2", "3", "4", "5"] {
+            SummaryCache.remove(for: id)
+        }
+        try await super.tearDown()
+    }
 
     // Helper: build a Character selection set from a schema mock
     private func makeCharacter(

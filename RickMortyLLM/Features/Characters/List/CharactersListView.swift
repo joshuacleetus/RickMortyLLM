@@ -26,7 +26,8 @@ struct CharactersListView: View {
                     return !showFavoritesOnly || favorites.contains(id)
                 }
 
-                ForEach(Array(filtered.enumerated()), id: \.offset) { index, c in
+                ForEach(filtered.indices, id: \.self) { index in
+                    let c = filtered[index]
                     NavigationLink {
                         CharacterDetailView(id: c.id ?? "")
                     } label: {

@@ -8,22 +8,24 @@
 import SwiftUI
 
 struct LandingView: View {
-    private var hasOpenAIKey: Bool { !AppConfig.shared.openAIKey.isEmpty }
-
+    private var hasOpenAIKey: Bool {
+        !AppConfig.shared.openAIKey.isEmpty
+    }
+    
     var body: some View {
         VStack(spacing: 24) {
             Image(systemName: "sparkles")
                 .font(.system(size: 56, weight: .semibold))
                 .padding(.top, 40)
-
+            
             Text("Rick & Morty Explorer")
                 .font(.largeTitle.weight(.bold))
-
+            
             Text("Browse characters via GraphQL (Apollo). Get a short AI summary on the detail page.")
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal)
-
+            
             HStack(spacing: 8) {
                 Circle().frame(width: 8, height: 8)
                     .foregroundStyle(hasOpenAIKey ? .green : .orange)
@@ -32,7 +34,7 @@ struct LandingView: View {
                     .font(.subheadline).foregroundStyle(.secondary)
                     .accessibilityLabel(hasOpenAIKey ? "AI ready" : "AI in stub mode")
             }
-
+            
             NavigationLink {
                 CharactersListView()
             } label: {
@@ -46,7 +48,7 @@ struct LandingView: View {
                     .padding(.horizontal)
             }
             .accessibilityHint("Opens the characters list")
-
+            
             Spacer()
         }
         .padding(.bottom, 32)

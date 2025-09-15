@@ -1,261 +1,253 @@
 # RickMortyLLM
 
-SwiftUI app that explores the Rick & Morty universe via GraphQL (Apollo iOS) and adds lightweight AI insights with an LLM (OpenAI gpt-3.5-turbo). Built with MVVM, async/await, Apollo normalized cache, and a tiny local summary cache. Includes Favorites, “Ask a question”, Accessibility, Dark Mode, unit tests, and GitHub Actions CI.
+A small SwiftUI app that fetches data from the **Rick & Morty GraphQL API** and adds **LLM-powered** insights (summaries, Q\&A, and fun facts) for characters, episodes, and locations.
 
-# Features
+> Target: iOS 17+
+>
+> Stack: SwiftUI · Apollo iOS · Combine/Swift Concurrency · URLSession · (Optional) Node/Express proxy for LLM
 
-Browse characters (paginated list) and view rich details (episodes, locations).
+---
 
-LLM summary of a character (2–3 sentences) and “Ask a question” about the character.
+## Table of Contents
 
-Favorites (UserDefaults) + filter in list.
+* [Features](#features)
+* [Architecture](#architecture)
+* [Tradeoffs & Limitations](#tradeoffs--limitations)
+* [Project Structure](#project-structure)
+* [Setup](#setup)
 
-Apollo normalized cache + small summary cache keyed by character id.
+  * [1) Clone & open](#1-clone--open)
+  * [2) Configure GraphQL codegen (Apollo)](#2-configure-graphql-codegen-apollo)
+  * [3) Choose & configure LLM](#3-choose--configure-llm)
+  * [4) Build & run](#4-build--run)
+  * [5) Run tests](#5-run-tests)
+* [CI (GitHub Actions)](#ci-github-actions)
+* [Screenshots / Demo](#screenshots--demo)
+* [Future Work](#future-work)
+* [License](#license)
 
-Accessible UI (Dynamic Type, VoiceOver labels, sufficient contrast) + Dark Mode.
+---
 
-Unit tests for ViewModels using ApolloTestSupport schema mocks.
+## Features
 
-GitHub Actions: build & test on a simulator.
+* Character list & detail (name, species, status, origin, episodes…)
+* Search & filter
+* Caching of last successful query (simple on-disk cache)
+* **LLM insights** on any character/episode/location:
 
-Tech Stack
+  * TL;DR summary
+  * Contextual Q\&A from on-device selections (e.g., "Explain Morty’s arc in these episodes")
+  * "Fun fact" generator
 
-SwiftUI, MVVM, async/await
+---
 
-Apollo iOS (1.23) for GraphQL + codegen
+## Architecture
 
-Public GraphQL: Rick & Morty API — https://rickandmortyapi.com/graphql
+**High level**
 
-LLM: OpenAI gpt-3.5-turbo (fallback to stub when key is missing)
+* **MVVM** with a thin UseCase layer (protocol-oriented, easy to unit test).
+* **Apollo iOS** for GraphQL transport & strongly-typed models.
+* **LLMProvider** protocol with concrete implementations for OpenAI or Gemini.
+* **EnvironmentConfig** for API keys and base URLs.
+* **Cache**: lightweight JSON file cache (can be swapped for SQLite/CoreData later).
 
-UserDefaults for favorites
+---
 
-XCTest, ApolloTestSupport for tests
+## Tradeoffs & Limitations
 
-GitHub Actions CI
+1. **Client → LLM direct calls** (DEV ONLY):
 
-Demo / Screenshots (optional)
+   * Production should **proxy via a backend** that holds the key. A tiny Node/Express example is provided below.
+2. **Free-tier LLMs**:
 
-Drop images in Docs/ and link them here.
+   * Rate limits & occasional latency spikes; model capabilities vary.
+   * Prompts are kept short; no user PII is sent.
+3. **Caching**:
 
-Demo video (optional): upload to GitHub Releases, or a public link, then add:
-[Watch the demo](https://…)
+   * Simple JSON file cache; no invalidation beyond staleness window.
+4. **Offline**:
 
-Getting Started
-Requirements
+   * Minimal offline support (reads from last cache) but no background sync.
+5. **Testing**:
 
-Xcode 16.x (project format 77)
+   * Unit tests for ViewModels and Repos with Mock LLM + Mock GraphQL; snapshot tests omitted for brevity.
 
-iOS 17+ target
+---
 
-Swift Package Manager (SPM)
+## Setup
 
-1) Clone
-git clone https://github.com/<your-username>/RickMortyLLM.git
+### 1) Clone & open
+
+```bash
+git clone https://github.com/<you>/RickMortyLLM.git
 cd RickMortyLLM
+open RickMortyLLM.xcodeproj 
+```
 
-2) Dependencies
+### 2) Configure GraphQL codegen (Apollo)
 
-Open RickMortyLLM.xcodeproj (or workspace if you use one). Xcode will resolve SPM packages automatically.
+**Dependencies (Swift Package Manager):**
 
-3) GraphQL Codegen (if you didn’t commit Generated/)
+```
+dependencies: [
+  .package(url: "https://github.com/apollographql/apollo-ios.git", .upToNextMajor(from: "1.0.0"))
+]
+```
 
-If Generated/ is already in the repo, you can skip this.
+Targets ➜ Add **Apollo** to the app target.
 
-Ensure apollo-ios-cli (executable) is at the repo root.
+**Schema & operations**
 
-Run:
+* Schema lives at `Modules/Data/GraphQL/Schema/schema.json` (or `.graphqls`).
+* Operations (queries/mutations) are in `Modules/Data/GraphQL/Operations/`.
 
-./apollo-ios-cli fetch-schema
-./apollo-ios-cli generate
+**Codegen options** (choose one):
 
+**A) Xcode Build Tool Plugin (recommended, Xcode 15+)**
 
-This uses apollo-codegen-config.json:
+1. In *Build Phases* ➜ add **Apollo Codegen Build Tool**.
+2. Ensure `Scripts/apollo-codegen-config.json` 
+3. Build the target; generated files appear under `Generated/`.
 
-Downloads the schema to GraphQL/Schema/RickMorty.graphqls
+**B) Run Script Phase**
+Add a *Run Script Phase* before Compile Sources:
 
-Generates schema & operation models into Generated/
+```bash
+# Apollo Codegen (SPM plugin entrypoint)
+if [ -z "${SRCROOT}" ]; then SRCROOT="$(pwd)"; fi
+APOLLO_CODEGEN_CONFIG="${SRCROOT}/Scripts/apollo-codegen-config.json"
+"${SWIFT_EXEC:-swift}" run apollo-ios-cli generate --config "${APOLLO_CODEGEN_CONFIG}"
+```
 
-4) Add your OpenAI API Key (two options)
+> If the `apollo-ios-cli` executable isn’t available by default, Xcode will resolve it via SPM the first build. No Homebrew needed.
 
-Option A — Info.plist (simple):
+### 3) Configure LLM
 
-Add a new key OpenAIAPIKey to your app Info.plist.
+* Model: `gpt-4o-mini` (fast, low-cost) or `gpt-4o`
+* Set **OPENAI\_API\_KEY** in the info.plist, the key will be provided separately
+  ```
 
-Value: your API key string.
+### 4) Build & run
 
-The app reads it via:
+* Select `RickMortyLLM` scheme ➜ iPhone 15 simulator ➜ **Run**.
+* First build may take a minute while SPM resolves Apollo & generates GraphQL types.
 
-// AppConfig.swift
-var openAIKey: String {
-  (Bundle.main.object(forInfoDictionaryKey: "OpenAIAPIKey") as? String) ?? ""
+### 5) Run tests
+
+* In Xcode: **Product > Test** (⌘U).
+* CLI:
+
+```bash
+xcodebuild -scheme RickMortyLLM -destination "platform=iOS Simulator,name=iPhone 15" test
+```
+
+---
+
+## CI (GitHub Actions)
+
+Minimal workflow (`.github/workflows/ios.yml`)
+
+---
+
+## Screenshots / Demo
+
+Add images under `Docs/` and link them here.
+
+| List                   | Detail                     | LLM Insight                  |
+| ---------------------- | -------------------------- | ---------------------------- |
+| ![List](Docs/list.png) | ![Detail](Docs/detail.png) | ![Insight](Docs/insight.png) |
+
+**Demo video**: add a short clip to `Docs/demo.mp4` and link: `[Watch demo](Docs/demo.mp4)`.
+
+---
+
+## Future Work
+
+* Offline-first with normalized cache (SQLite) via ApolloStore
+* Pagination for long lists (characters/episodes)
+* Snapshot tests for UI, accessibility audits
+* Prompt templates and function calling for structured LLM output
+* In-app feedback & analytics (privacy-first)
+
+---
+
+## License
+
+MIT (or your preferred license)
+
+---
+
+## Appendix
+
+### Example GraphQL query (`Characters.graphql`)
+
+```graphql
+query Characters($page: Int, $name: String) {
+  characters(page: $page, filter: { name: $name }) {
+    info { count pages next prev }
+    results {
+      id
+      name
+      status
+      species
+      image
+      origin { name }
+      episode { id name air_date }
+    }
+  }
 }
+```
+
+### LLMProvider protocol (sketch)
+
+```swift
+protocol LLMProvider {
+  func summarize(_ text: String, maxTokens: Int) async throws -> String
+  func funFact(from text: String) async throws -> String
+  func answer(question: String, context: String) async throws -> String
+}
+```
+
+### OpenAIProvider (sketch)
+
+```swift
+struct OpenAIProvider: LLMProvider {
+  let apiKey: String
+  let baseURL: URL = URL(string: "https://api.openai.com/v1")!
+  let model: String = "gpt-4o-mini"
+
+  func summarize(_ text: String, maxTokens: Int) async throws -> String {
+    let prompt = "Summarize succinctly (\(maxTokens) tokens max):\n\(text)"
+    return try await chat(prompt: prompt)
+  }
+
+  func funFact(from text: String) async throws -> String {
+    try await chat(prompt: "Extract one fun, spoiler-free fact:\n\(text)")
+  }
+
+  func answer(question: String, context: String) async throws -> String {
+    try await chat(prompt: "Using only this context, answer concisely. If unknown, say so.\nContext:\n\(context)\n\nQ: \(question)")
+  }
+
+  private func chat(prompt: String) async throws -> String {
+    struct Req: Encodable { let model: String; let messages: [[String: String]] }
+    struct Res: Decodable { struct Choice: Decodable { struct Msg: Decodable { let content: String } let message: Msg }; let choices: [Choice] }
+
+    var req = URLRequest(url: baseURL.appendingPathComponent("/chat/completions"))
+    req.httpMethod = "POST"
+    req.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+    req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    req.httpBody = try JSONEncoder().encode(Req(model: model, messages: [["role": "user", "content": prompt]]))
+
+    let (data, resp) = try await URLSession.shared.data(for: req)
+    guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+      throw URLError(.badServerResponse)
+    }
+    let decoded = try JSONDecoder().decode(Res.self, from: data)
+    return decoded.choices.first?.message.content.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+  }
+}
+```
+
+---
 
-
-If empty/missing → the app falls back to StubLLM (no network).
-
-Option B — Xcode build setting (kept out of VCS):
-
-Create Config/Secrets.xcconfig (git-ignored) with:
-
-OPENAI_API_KEY = sk-...
-
-
-In Build Settings → Other Swift Flags (Debug/Release), add:
-
--D OPENAI_API_KEY=\"$(OPENAI_API_KEY)\"
-
-
-Read it in AppConfig.swift using #if or ProcessInfo.processInfo.environment (your choice).
-(Info.plist is simpler for this take-home.)
-
-5) Run
-
-Select a simulator and Run.
-
-On first launch, Landing shows “AI: OpenAI (key detected)” or “AI: Stub (no key)”.
-
-Chosen APIs
-
-GraphQL: Rick & Morty API
-
-Operations:
-
-Characters (paginated list)
-
-CharacterDetails (by id)
-
-LLM: OpenAI gpt-3.5-turbo
-
-Endpoint: POST /v1/chat/completions
-
-Prompting kept short & deterministic-ish (temperature: 0.3)
-
-When no key is set, the app uses StubLLM with canned responses.
-
-# Architecture
-
-SwiftUI + MVVM
-
-*ViewModel holds state, calls GraphQLService & LLMClient
-
-Views are thin renderers
-
-GraphQLClient (Apollo)
-
-Configured with normalized cache (SQLite)
-
-GraphQLService protocol to DI in tests
-
-Cache policies used:
-
-List: .returnCacheDataElseFetch for pagination
-
-Detail: .returnCacheDataElseFetch (fast), .fetchIgnoringCacheCompletely on pull-to-refresh
-
-LLMClient protocol
-
-OpenAIClient (real) + StubLLM (fallback/testing)
-
-summarizeCharacter & answerAboutCharacter
-
-SummaryCache
-
-Simple UserDefaults/file-based cache keyed by character id
-
-Set on first summarize; shown immediately on next open
-
-FavoritesStore
-
-Set of favorite ids persisted in UserDefaults
-
-Badge/toggle + “Favorites only” filter
-
-Tests
-
-Enable Apollo Test Mocks in apollo-codegen-config.json so codegen outputs RickMortyLLMTests/Generated/TestMocks.
-
-In Xcode, add that folder to RickMortyLLMTests (Create groups, don’t copy).
-
-Tests use:
-
-MockGraphQLService (DI)
-
-MockLLM (counts calls + returns fixed strings)
-
-ApolloTestSupport.Mock<SchemaObject> → convert to SelectionSet with .from(...).
-
-Run:
-
-cmd + U     # in Xcode
-or CI: see .github/workflows/ios-ci.yml
-
-# Accessibility & Dark Mode
-
-Uses Dynamic Type friendly text styles and minimumScaleFactor where needed.
-
-Adds accessibility labels for AI summary and answers.
-
-Colors rely on system roles for contrast; images have labels when important.
-
-Dark Mode: the palette is system-adaptable; views use Materials and semantic colors.
-
-CI (GitHub Actions)
-
-Workflow at .github/workflows/ios-ci.yml:
-
-Selects Xcode 16.2
-
-Auto-picks a real simulator UDID from -showdestinations
-
-Caches SPM, builds, runs unit tests
-
-Uploads TestResults.xcresult artifact
-
-If your project uses a workspace, swap -project → -workspace in the YAML.
-
-Trade-offs & Limitations
-
-LLM latency/cost: network round-trip & quota errors (handled; falls back to clear error).
-
-Determinism: summaries can vary; we use a low temperature to reduce drift.
-
-Caching: Apollo cache + small summary cache; not a full offline experience.
-
-Schema/codegen coupling: generated files can be large; for the take-home, committed for simplicity.
-
-Error handling: surfaced to the user via alerts/snackbars; could be richer (retry/backoff).
-
-Privacy: Character context is sent to OpenAI only when “Summarize”/“Ask” is tapped.
-
-Future Enhancements
-
-Search & filters (species/status).
-
-Offline summaries persisted with versioning.
-
-Snapshot/UI tests with accessibility checks.
-
-Multi-provider LLM swap (Cohere/Gemini) via the same LLMClient.
-
-Better prompt templates & safety rails.
-
-License & Credits
-
-Rick & Morty API by rickandmortyapi.com
-
-OpenAI API for LLM
-
-This project is for educational/demo purposes.
-
-Add your license of choice (MIT/Apache-2.0) as LICENSE.
-
-Quick Setup TL;DR
-
-Open in Xcode 16.x (scheme Shared)
-
-(Optional) Run Apollo codegen: ./apollo-ios-cli fetch-schema && ./apollo-ios-cli generate
-
-Add OpenAIAPIKey to Info.plist (or use StubLLM)
-
-Run on simulator → tap a character → Summarize with AI / Ask a question

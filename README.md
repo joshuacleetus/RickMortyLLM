@@ -151,13 +151,12 @@ Minimal workflow (`.github/workflows/ios.yml`)
 
 ## Screenshots / Demo
 
-Add images under `Docs/` and link them here.
+**Demo video**: 
 
-| List                   | Detail                     | LLM Insight                  |
-| ---------------------- | -------------------------- | ---------------------------- |
-| ![List](Docs/list.png) | ![Detail](Docs/detail.png) | ![Insight](Docs/insight.png) |
 
-**Demo video**: add a short clip to `Docs/demo.mp4` and link: `[Watch demo](Docs/demo.mp4)`.
+https://github.com/user-attachments/assets/cfa835e9-f128-4938-a11c-5e6e84d36c0a
+
+
 
 ---
 

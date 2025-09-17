@@ -168,11 +168,6 @@ https://github.com/user-attachments/assets/cfa835e9-f128-4938-a11c-5e6e84d36c0a
 * Prompt templates and function calling for structured LLM output
 * In-app feedback & analytics (privacy-first)
 
----
-
-## License
-
-MIT (or your preferred license)
 
 ---
 
